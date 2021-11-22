@@ -1,3 +1,14 @@
+This is **ToolX Framework** with pre installed scss compiler, user authentication, css minifier. 
+
+Ships with users table migration ( `php cli make:migration Users` ).
+
+It also has helper function which you can find inside **app/Helpers** directory, with which it is possible to check user privilege - ```checkAuth([1,2,3])```
+
+- **1** - stands for *super user*.
+- **2** - stands for *manager*.
+- **3** - stands for *registered user*.
+
+
 # Router
 ## Creating routes
 
