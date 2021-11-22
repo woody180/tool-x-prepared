@@ -1,0 +1,34 @@
+
+
+// Media screens
+$xl-screen: 1600px;
+$l-screen: 1200px;
+$m-screen: 960px;
+$s-screen: 640px;
+
+
+$primaryColor: #1b5de4;
+$secondaryColor: #4e5057;
+$greenColor: #91cc13;
+$darkColor: #151515;
+
+$headingFont: 'BPG Arial Caps';
+$bodyFont: 'BPG Arial';
+
+:root {
+    // Colors
+    --primaryColor: #{$primaryColor};
+    --secondaryColor: #{$secondaryColor};
+    --greenColor: #{$greenColor};
+    --darkColor: #{$darkColor};
+    
+    // Fonts
+    --headingFont: #{$headingFont};
+    --bodyFont: #{$bodyFont};
+
+    // Screen sizes
+    --xl-screen: #{$xl-screen};
+    --l-screen: #{$l-screen};
+    --m-screen: #{$m-screen};
+    --s-screen: #{$s-screen};
+}

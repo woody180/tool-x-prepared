@@ -1,0 +1,222 @@
+<?php namespace App\Engine\Libraries;
+
+use \App\Engine\Libraries\Library;
+
+class Router {
+    
+    use \RequestTrait, \ResponseTrait;
+    
+    private $routes = [];
+    private $request;
+    private static $instance = null;
+
+
+
+    private function __construct() {
+        $this->request = $this->getRequest();
+    }
+
+    // Router HTTP verbs
+    public function get($url, $callback, string $middleware = null) {
+        $this->routes['get'][$url] = [$callback, $middleware];
+    }
+    public function post($url, $callback, string $middleware = null) {
+        $this->routes['post'][$url] = [$callback, $middleware];
+    }
+    public function put($url, $callback, string $middleware = null) {
+        $this->routes['put'][$url] = [$callback, $middleware];
+    }
+    public function patch($url, $callback, string $middleware = null) {
+        $this->routes['patch'][$url] = [$callback, $middleware];
+    }
+    public function delete($url, $callback, string $middleware = null) {
+        $this->routes['delete'][$url] = [$callback, $middleware];
+    }
+    public function match($methods, $url, $callback, string $middleware = null) {
+
+        $methodsArray = explode('|', $methods);
+
+        foreach ($methodsArray as $method)
+            $this->routes[$method][$url] = [$callback, $middleware];
+    }
+    public function all($url, $callback, string $middleware = null) {
+
+        $httpVerbs = ['get', 'post', 'put', 'patch', 'delete', 'options'];
+
+        foreach ($httpVerbs as $verb)
+            $this->routes[$verb][$url] = [$callback, $middleware];
+    }
+    
+    
+        
+    // Placeholder to regex
+    protected function checkPatternMatch() {
+        $routes = [];
+
+        foreach ($this->routes[$this->request->getMethod()] as $route => $method) {
+            $url = str_replace('/', '\/', $route);
+            $url = str_replace('(:continue)', '[\w\-_].*', $url);               // Continues segment
+            $url = str_replace('(:num)', '\d+', $url);                          // Only numbers
+            // $url = str_replace('(:hash)', '[\#][\w\-_]+', $url);             // Everything after hash tag
+            $url = str_replace('(:alpha)', '[a-zA-Zა-ჰа-яА-Я]+', $url);         // Only alphabetical
+            $url = str_replace('(:alphanum)', '[a-zA-Zა-ჰа-яА-Я\d]+', $url);    // Only alphabetical and numbers
+            $url = str_replace('(:segment)', '[\w\-_]+', $url);                 // Only alpha, num, dashes, lowdashes and numbers
+
+            // Push to new routes array
+            $routes[$this->request->getMethod()][$url] = $method;
+        }
+
+        // Find requested url
+        foreach ($routes[$this->request->getMethod()] as $route => $method) {
+
+            $queryStr = !empty($this->request->query()) ? $this->request->queryStr() : null;
+            $compareTo = $queryStr ? explode($queryStr, $this->request->url())[0] : $this->request->url();
+            $compareTo = empty($compareTo) ? '/' : $compareTo;
+            
+            if (preg_match("/" . $route . "/", $compareTo, $match)) {
+
+                if (isset($match[0]) && $match[0] === $compareTo) {
+                    return $method;
+                } else {
+                    continue;
+                }
+            }
+        }
+
+        return 0;
+    }
+    
+    
+    private function runMiddleware($func) {
+        // Check if file exists
+        $file = APPROOT . "/Routes/{$func}.php";
+
+        if (!file_exists($file))
+            die('Wrong middleware path ' . $func );
+    
+        // check slashes
+        require_once $file;
+
+        $arr = explode('/', $func);
+        $function = end($arr);
+        
+        $function($this->getRequest(), $this->getResponse());
+    }
+
+
+    // File namespace extractor
+    protected function getNamespaceByFileContent ($src) {
+        $tokens = token_get_all($src);
+        $count = count($tokens);
+        $i = 0;
+        $namespace = '';
+        $namespace_ok = false;
+        while ($i < $count) {
+            $token = $tokens[$i];
+            if (is_array($token) && $token[0] === T_NAMESPACE) {
+                // Found namespace declaration
+                while (++$i < $count) {
+                    if ($tokens[$i] === ';') {
+                        $namespace_ok = true;
+                        $namespace = trim($namespace);
+                        break;
+                    }
+                    $namespace .= is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+                }
+                break;
+            }
+            $i++;
+        }
+    
+        if (!$namespace_ok) {
+            return null;
+        } else {
+            return $namespace;
+        }
+    }
+    
+    
+    public function __destruct() {
+
+        // Check if method exists inside the router
+        if (array_key_exists($this->request->getMethod(), $this->routes)) {
+
+            // Check if user exists inside the routes method
+            
+            if ($this->checkPatternMatch()) {
+                
+                // Get callback variable
+                $callback = $this->checkPatternMatch();
+
+                // Check if callback variable is statusCode
+                if (is_numeric($callback[0])) abort(['code' => $callback[0]]);
+                
+                // Check if $callback is callable
+                if (is_callable($callback[0])) {
+
+                    // Check if route has some middleware
+                    if ($callback[1]) $this->runMiddleware($callback[1]);
+
+                    call_user_func($callback[0], $this->getRequest(), $this->getResponse());
+
+                } else {
+
+                    // Controller & method array
+                    $controllerMethodArray = explode('@', $callback[0]);
+
+                    // Get controller
+                    $this->currentController = $controllerMethodArray[0];
+
+                    // Check if controller file exists
+                    if (!file_exists(APPROOT . "/Controllers/{$this->currentController}.php"))
+                        abort();
+
+                    // Require controller file
+                    require_once APPROOT . "/Controllers/{$this->currentController}.php"; // Include file
+                    $src = file_get_contents(APPROOT . "/Controllers/{$this->currentController}.php"); // Extract file
+
+                    // Instantiate controller
+                    $controller = explode('/', $this->currentController);
+                    $this->currentController = end($controller);
+                    $checkNamespace = $this->getNamespaceByFileContent($src);
+
+                    // Check if namespace is inside the controller
+                    if (!$checkNamespace) die('Controller must has a namespace');
+
+                    // Get controller namespace
+                    $namespace = $checkNamespace . '\\' . $this->currentController;
+
+                    // Initialize controller
+                    $this->currentController = new $namespace();
+
+                    // Get method
+                    $this->currentMethod = $controllerMethodArray[1];
+
+                    // Check method inside the controller
+                    if (!method_exists($this->currentController, $this->currentMethod))
+                        abort();
+
+                    // Check if route has some middleware
+                    if ($callback[1]) $this->runMiddleware($callback[1]);
+
+                    // Call method and apply arguments
+                    call_user_func_array([$this->currentController, $this->currentMethod], [$this->getRequest(), $this->getResponse()]);
+
+                }
+            } else {
+
+                abort();
+            }
+
+        } else {
+
+            abort();
+        }
+    }
+    
+    public static function getInstance() {
+        if (!self::$instance) self::$instance = new Router();
+        
+        return self::$instance;
+    }
+}

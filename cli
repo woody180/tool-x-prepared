@@ -1,0 +1,306 @@
+<?php
+
+require_once __DIR__ . '/app/Config/urls.php';
+require_once __DIR__ . '/app/Config/database.php';
+require_once __DIR__ . '/app/Engine/Libraries/rb.php';
+require_once __DIR__ . '/app/Engine/Database/Initialization.php';
+require_once __DIR__ . '/app/Engine/Database/Connection.php';
+
+class Cli {
+
+    private static $command_array = NULL;
+    private static $messages;
+
+    public static function construct($argv) {
+
+        self::$messages = "😤 try \n ➡  php cli make:controllers blog something \n ➡  php cli make:routes blog post \n ➡  php cli make:restful blog";
+
+        if ( isset($argv[1]) ) {
+            if (preg_match('/:/', $argv[1])) {
+
+                $argv_split = explode(':', $argv[1]);
+
+                if (!isset($argv[2])) die(self::$messages);
+                
+                call_user_func(['Cli', $argv_split[0]], $argv_split[1], $argv[2], $argv[3] ?? '');
+            }
+        } else {
+            echo self::$messages;
+        }
+    }
+
+
+    private static function make(string $fileType, string $fileName, string $param = null) {
+
+        $type = ucfirst($fileType);
+
+
+        // If type is restful
+        if ($fileType === 'restful') {
+
+            // Make controller directory with controller files
+            self::restRoute($fileName);
+
+            // Make routes directory with route files
+                
+            self::restControllerClean($fileName);
+     
+            die("✔ - Restful Route and Conttoller were created \n");
+        }
+
+        
+        // Check dir
+        if (preg_match('/[\/]/', $fileName)) {
+
+            $directoryArray = explode('/', $fileName);
+            $index = array_key_last($directoryArray);
+            $fileName = $directoryArray[$index];
+            array_splice($directoryArray, $index, 1);
+            $type .= '/' . join('/', $directoryArray); // New url from type
+
+            // Construct path
+            $path = __DIR__ . "/app/{$type}";
+
+            if (!is_dir($path)) {
+
+                preg_replace('//', '', $path);
+
+                // Create file
+                mkdir($path, 0777, true);
+            }
+        }
+
+
+        if ($fileType === 'migration') {
+            self::migration($fileName);
+            die;
+        }
+        
+        
+        // Check suffixes
+        if ($fileType === 'controllers')    $suffix = 'Controller';
+        if ($fileType === 'routes')         $suffix = 'Route';
+        if ($fileType === 'models')         $suffix = 'Model_' . ucfirst($fileName);
+        
+
+        // Get file content
+        $boilerPlate = call_user_func(['Cli', ucfirst($fileType)], ucfirst($fileName), $type, $param);
+        if ($fileType === 'models') $fileName = '';
+
+        // Create file with content
+        file_put_contents(__DIR__ . "/app/{$type}/". ucfirst($fileName) . $suffix .".php", $boilerPlate);
+
+        echo "✔ - $fileName done! \n";
+    }
+
+
+
+    private static function migration(string $migrationName) {
+
+        $modelName = ucfirst($migrationName);
+        $filePath = __DIR__ . "/app/Models/Model_{$modelName}.php";
+
+        if (!file_exists($filePath)) {
+            echo 'Migration not exists';
+            die;
+        }
+
+        $model = initModel($modelName);
+
+        $model->migrate();
+
+        echo "✔ Migration succeed from model - Model_$modelName";
+    }
+
+
+
+    // Boilerplate for models
+    private static function models(string $filename) {
+
+        return "<?php
+        
+class Model_$filename extends RedBean_SimpleModel {
+
+    public function open() {
+        
+    }
+
+    public function dispense() {
+        
+    }
+
+    public function update() {
+        
+    }
+
+    public function after_update() {
+        
+    }
+
+    public function delete() {
+        
+    }
+
+    public function after_delete() {
+        
+    }
+}";
+    }
+
+
+
+    // Boilerplate for routes
+    private static function routes($fileName, $type, $param) {
+
+        if (!$param) $param = 'get';
+
+        return "<?php
+
+use App\Engine\Libraries\Router;
+
+
+\$router = Router::getInstance();
+
+\$router->{$param}('". strtolower($fileName) ."', function(\$req, \$res) {
+   
+});
+        ";
+    }
+
+
+    // BloilerPlate for controller
+    private static function controllers($fileName, $type, $param = null) {
+
+        $param = !$param ? $fileName : $param;
+        $type = str_replace('/', '\\', $type);
+
+return "<?php namespace App\\$type;
+
+
+
+class {$fileName}Controller {
+    
+    public function index(\$req, \$res) {
+       
+    }
+}
+        ";
+    }
+
+
+
+
+    private static function restRoute(string $routeName) {
+
+        $routeNameArr = explode('/', $routeName);
+        
+        $lastIndex = array_key_last($routeNameArr);
+        $filename = end($routeNameArr);
+        array_splice($routeNameArr, $lastIndex, 1);
+        $halfPath = join('/', $routeNameArr);
+        $pathToController = "{$halfPath}/{$filename}";
+        $path = __DIR__ . "/app/Routes/" .$halfPath;
+
+        if (preg_match('/^[\/](.+)/', $pathToController, $match))
+            $pathToController = $match[1];
+        
+        // Make directory
+        if (!is_dir($path))
+            mkdir($path, 0777, true);
+        
+
+        // Create file with content
+        file_put_contents("{$path}/{$filename}Route.php", '<?php
+
+use App\Engine\Libraries\Router;
+
+
+$router = Router::getInstance();
+
+$router->get(\''.strtolower($pathToController).'/new\',                \''.ucfirst($pathToController).'Controller@new\');
+$router->post(\''.strtolower($pathToController).'\',                   \''.ucfirst($pathToController).'Controller@create\');
+$router->get(\''.strtolower($pathToController).'\',                    \''.ucfirst($pathToController).'Controller@index\');
+$router->get(\''.strtolower($pathToController).'/(:segment)\',         \''.ucfirst($pathToController).'Controller@show\');
+$router->get(\''.strtolower($pathToController).'/(:segment)/edit\',    \''.ucfirst($pathToController).'Controller@edit\');
+$router->put(\''.strtolower($pathToController).'/(:segment)\',         \''.ucfirst($pathToController).'Controller@update\');
+$router->patch(\''.strtolower($pathToController).'/(:segment)\',       \''.ucfirst($pathToController).'Controller@update\');
+$router->delete(\''.strtolower($pathToController).'/(:segment)\',      \''.ucfirst($pathToController).'Controller@delete\');
+        ');
+    }
+
+
+
+    private static function restControllerClean(string $controllerName) {
+
+        $controllerNameArr = explode('/', $controllerName);
+        $count = count($controllerNameArr) + 1;
+        $lastIndex = array_key_last($controllerNameArr);
+        $filename = end($controllerNameArr);
+
+        array_splice($controllerNameArr, $lastIndex, 1);
+        $halfPath = join('/', $controllerNameArr);
+        $path = __DIR__ . "/app/Controllers/" . $halfPath;
+
+        // Make directory
+        if (!is_dir($path))
+            mkdir($path, 0777, true);
+
+        $namespace = !empty($halfPath) ? "Controllers/{$halfPath}" : "Controllers";
+        $namespace = str_replace('/', '\\', $namespace);
+
+        file_put_contents("{$path}/{$filename}Controller.php", '<?php namespace App\\'.$namespace.';
+
+
+
+class '.$filename.'Controller {
+    
+    // Add new view
+    public function new($req, $res) {
+        
+    }
+
+
+    // Create view
+    public function create($req, $res) {
+       
+    }
+
+
+    // All items
+    public function index($req, $res) {
+       
+    }
+
+
+    // Show view
+    public function show($req, $res) {
+        $id = $req->getSegment('.$count.');
+    }
+
+
+    // Edit view
+    public function edit($req, $res) {
+        $id = $req->getSegment('.$count.');
+    }
+
+
+    // Update
+    public function update($req, $res) {
+        $id = $req->getSegment('.$count.');
+    }
+
+
+    // Delete
+    public function delete($req, $res) {
+        $id = $req->getSegment('.$count.');
+    }
+
+}
+        ');
+    }
+
+
+}
+
+
+Cli::construct($argv);
