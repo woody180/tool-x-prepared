@@ -1,14 +1,3 @@
-This is **ToolX Framework** with pre installed scss compiler, user authentication, css minifier. 
-
-Ships with users table migration ( `php cli make:migration Users` ).
-
-It also has helper function which you can find inside **app/Helpers** directory, with which it is possible to check user privilege - ```checkAuth([1,2,3])```
-
-- **1** - stands for *super user*.
-- **2** - stands for *manager*.
-- **3** - stands for *registered user*.
-
-
 # Router
 ## Creating routes
 
@@ -406,14 +395,8 @@ $router->post('api/one', function($req, $res) {
 ```
 <form>
     <div>
-
         <input name="username" />
-
-        <?php if (hasFlashData('errors')): ?>
-            <p class="uk-margin-remove uk-text-danger uk-text-small"><?= implode(', ', 
-            getFlashData('errors')->username ?? []) ?></p>
-        <?php endif; ?>
-
+        <?= show_error('errors', 'username') ?>
     </div>
 </form>
 ```
