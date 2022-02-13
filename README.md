@@ -421,6 +421,82 @@ public function method($req, $res) {
 });
 ```
 
+# Languages and Translations
+
+For multilangual activation go to **app/Config/app.php** directory and set **MULTILINGUAL** to **true**
+
+## Creating language list with CLI 
+
+### Creating languages list
+```
+php cli language:set english en --primary
+php cli language:set english ge
+```
+
+### Set primary language
+```
+php cli language:primary ge
+```
+
+### Get language list
+```
+php cli language:list show
+```
+
+### Delete language
+```
+php cli language:delete en
+```
+
+### Delete list
+```
+php cli language:refresh all
+```
+
+## Creating translation files
+Inside **app/languages** directory create folder with language code for example 'en'.
+
+Than create .php file called for example **validation** and inside this file return array with key / values of words / sentences you want to translate.
+
+```
+return [
+    'err_name' => 'Name error'
+];
+
+```
+
+In order to show this translations use namespace `use App\Engine\Libraries\Languages;`
+
+and than - 
+```
+<?php
+
+use App\Engine\Libraries\Languages;
+
+Languages::translate('validation.err_name')
+```
+
+
+# Singleton pattern
+Create Singleton pattern with CLI
+```
+php cli make:singleton className
+```
+It will generate file in **app/Singleton** directory. This file goning to load automatically form **app/Engine/bootstrap.php** file.
+
+To use this class, just load coresponding namespace
+
+```
+use app\Singleton\ClassName;
+
+public function contorllerName() {
+
+    ClassName::getInstance();
+}
+
+```
+
+
 # Pagination
 
 ```
@@ -467,3 +543,4 @@ It is possible to create routes and controllers using CLI commands
 - Create Model - ```php cli make:models modelname```
 - Migration through model method - ```php cli make:migration ModelName```
 - Create restful routes and controllers - ``` php cli make:restful Blog/Articles ```
+- Create singleton - ``` php cli make:singleton className ```
