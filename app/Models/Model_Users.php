@@ -26,7 +26,7 @@ class Model_Users extends RedBean_SimpleModel {
         
     }
 
-    public function usersSeeder() {
+    public function migrate() {
 
         //////////////////////////////////////////////////
         $groupsArr = [
