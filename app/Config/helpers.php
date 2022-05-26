@@ -9,4 +9,4 @@
 */
 
 
-CONST CUSTOM_HELPERS = ['minifier/minifier'];
+CONST CUSTOM_HELPERS = [];

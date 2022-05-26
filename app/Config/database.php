@@ -1,9 +1,9 @@
 <?php
 
-define("DATABASE", TRUE);
-define('DATABASE_TYPE', 'MySQL'); // MySQL, PostgreSQL, SQLite, CUBRID
+define("DATABASE", FALSE);
+define('DATABASE_TYPE', 'SQLite'); // MySQL, PostgreSQL, SQLite, CUBRID
 
-CONST DB_HOST       = '';
+CONST DB_HOST       = 'localhost';
 CONST DB_NAME       = '';
 CONST DB_USERNAME   = '';
 CONST DB_PASSWORD   = '';

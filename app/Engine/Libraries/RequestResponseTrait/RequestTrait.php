@@ -7,8 +7,11 @@ trait RequestTrait {
     private $urlParams;
     private $url;
     private $isDone = false;
-    
-    
+    private $data;
+
+
+
+
     // Construct request url data...
     protected function constructRequest() {
         
@@ -64,20 +67,46 @@ trait RequestTrait {
             return explode('?', $param)[0];
         }
     }
+    
+    
+    protected function checkCSRF($isTrue = true)
+    {
+        
+        if ($isTrue) {
+            
+            if (CSRF_PROTECTION && $this->getMethod() === 'post' && !$this->isDone) {
+                
+                // If token inside the request body
+                if (!isset($this->data['csrf_token'])) return abort(['code' => 403]);
 
+                // Compare tokens
+                if ($this->data['csrf_token'] != $_SESSION['csrf_token']) return abort(['code' => 403]);
+
+                if (CSRF_REFRESH) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+                $this->isDone = true;
+                
+                if (isset($this->data['csrf_token'])) unset($this->data['csrf_token']);
+            }
+        }
+        
+        return true;
+    }
+
+    
 
     public function body(string $index = null) {
-                
+        
         // Request data
         $reqString = file_get_contents('php://input');
         $data = [];
-
+        
         if (!empty($reqString) && isJSON($reqString)) {
             $data = json_decode($reqString, true);
         } else {
             parse_str($reqString, $data);
         }
-
+        
         if (isset($data['_method'])) unset($data['_method']);
 
         // Append post request to body
@@ -85,27 +114,11 @@ trait RequestTrait {
             $data[$key] = $val;
 
 
-        if (CSRF_PROTECTION && $this->getMethod() === 'post' && !$this->isDone) {
-                    
-            // If token inside the request body
-            if (!isset($data['csrf_token'])) return abort(['code' => 403]);
-
-            // Compare tokens
-            if ($data['csrf_token'] != $_SESSION['csrf_token']) return abort(['code' => 403]);
-
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-
-            $this->isDone = true;
-        }
-
-        if (isset($data['csrf_token'])) unset($data['csrf_token']);
-
-
-        if ($index)
-            return $data[$index] ?? null;
+        if ($index) return $data[$index] ?? null;
+        
+        $this->data = $data;
         
         return $data;
-        
     }
 
 
@@ -145,7 +158,11 @@ trait RequestTrait {
         }
 
         if ($key) {
-            return $queryArr[$key] ?? null;
+            if (isset($queryArr[$key]))
+                return htmlspecialchars($queryArr[$key], ENT_QUOTES);
+
+            return null;
+            
         } else {
             return $queryArr;
         }
