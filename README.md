@@ -1,3 +1,10 @@
+# Starting server
+With your terminal navigation public directory and then type - 
+```
+php -S localhost:3000
+```
+you can change port "3000" from **app/Config/urls.php**
+
 # Router
 ## Creating routes
 
@@ -20,6 +27,18 @@ $router->delete('/', function($req, $res) {});
 $router->all('/', function($req, $res) {});
 $router->match('get|post', '/', function($req, $res) {});
 ```
+It is also possible to add routes in the different way.
+```
+$router->post([
+    'route' => 'some/url',
+    'controller' => 'PagesController',
+    'method' => 'create',
+    'csrf' => false
+]);
+
+```
+
+
 Router verb method takes two arguments -  ```$request``` and ```$response```.
 ```
 $router->get('/', function($req, $res) {
